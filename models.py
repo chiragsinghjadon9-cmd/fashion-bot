@@ -26,7 +26,7 @@ def generate_text_response(prompt: str) -> str:
         completion = client.chat.completions.create(
             model=LLM_MODEL_ID,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=300
+            max_tokens=20
         )
         return completion.choices[0].message.content
     except Exception as e:
