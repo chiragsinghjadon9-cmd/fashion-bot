@@ -29,7 +29,10 @@ templates = Jinja2Templates(directory="templates")
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-
+@app.head("/")
+async def head_root():
+     return HTMLResponse(status_code=200)
+    
 # ✅ CHAT API (UNCHANGED LOGIC)
 @app.post("/chat")
 async def chat(
