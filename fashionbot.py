@@ -1,13 +1,17 @@
 import os
-from fastapi import FastAPI, Form, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
-# ✅ IMPORT FROM THE NEW UNIFIED FILE
+from fastapi import FastAPI, Form, UploadFile, File, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+# ✅ IMPORT YOUR MODEL FUNCTIONS
 from models import generate_text_response, generate_vision_response
 
 app = FastAPI()
 
+# ✅ CORS (safe for Render)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,35 +20,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ✅ FRONTEND SETUP
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+# ✅ HOME PAGE
+@app.get("/")
+async def home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+# ✅ CHAT API (UNCHANGED LOGIC)
 @app.post("/chat")
 async def chat(
     text: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None)
 ):
-    # 📸 IMAGE PROCESSING (Vision)
+    # 📸 IMAGE → VLM
     if image:
-        print(f"📸 Image received: {image.filename}")
-        
-        # Save temp file
         file_location = f"temp_{image.filename}"
+
         with open(file_location, "wb") as f:
-            f.write(await image.read()) # Added await here for safety
+            f.write(await image.read())
 
-        # Default prompt if user didn't type anything
-        prompt = text.strip() if text and text.strip() else "Describe this fashion item and suggest matching outfits."
+        prompt = text.strip() if text and text.strip() else (
+            "Describe this fashion item and suggest matching outfits."
+        )
 
-        # Call the VLM function from models.py
         response_text = generate_vision_response(prompt, file_location)
-        
-        # Cleanup: Delete the temp file after processing
+
         if os.path.exists(file_location):
             os.remove(file_location)
-            
+
         return {"reply": response_text}
 
-    # 💬 TEXT PROCESSING (LLM)
+    # 💬 TEXT → LLM
     if text:
-        print(f"💬 Text received: {text}")
         response_text = generate_text_response(text)
         return {"reply": response_text}
 
